@@ -7,7 +7,7 @@ services:
     startCommand: python main.py
     envVars:
       - key: MONGODB_URI
-        value: mongodb+srv://emiliohtp_db_user:PUyvTLcwWKOQ4wwM@cluster0.cvdcchr.mongodb.net/
+        sync: false  # Configurar manualmente en Render Dashboard
       - key: DB_NAME
         value: login
       - key: PYTHON_VERSION
