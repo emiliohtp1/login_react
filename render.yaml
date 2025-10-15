@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: tienda-ropa-api
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
+    envVars:
+      - key: MONGODB_URI
+        value: mongodb+srv://emiliohtp_db_user:PUyvTLcwWKOQ4wwM@cluster0.cvdcchr.mongodb.net/
+      - key: DB_NAME
+        value: login
+      - key: PYTHON_VERSION
+        value: 3.9.0
