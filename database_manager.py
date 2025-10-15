@@ -1,5 +1,5 @@
 from pymongo import MongoClient
-from config import MONGODB_URI, DB_NAME, COLLECTION_USERS, COLLECTION_PRODUCTS
+from config import MONGODB_URI, DB_NAME, DB_NAME_PRUEBA, COLLECTION_USERS, COLLECTION_PRODUCTS, COLLECTION_PRUEBA
 import json
 from datetime import datetime
 
@@ -216,3 +216,94 @@ class DatabaseManager:
             
         except Exception as e:
             return {"success": False, "message": f"Error: {str(e)}"}
+    
+    # Métodos para la base de datos "prueba"
+    def get_prueba_products(self):
+        """Obtener todos los productos de la base de datos prueba"""
+        try:
+            # Conectar a la base de datos de prueba
+            prueba_db = self.client[DB_NAME_PRUEBA]
+            products_collection = prueba_db[COLLECTION_PRUEBA]
+            
+            # Obtener todos los productos
+            products = list(products_collection.find({}))
+            
+            # Convertir ObjectId a string para JSON serialization
+            for product in products:
+                if '_id' in product:
+                    product['_id'] = str(product['_id'])
+            
+            return {"success": True, "products": products}
+            
+        except Exception as e:
+            return {"success": False, "message": f"Error obteniendo productos de prueba: {str(e)}"}
+    
+    def get_prueba_product_by_id(self, product_id):
+        """Obtener un producto específico de la base de datos prueba por ID"""
+        try:
+            from bson import ObjectId
+            
+            # Conectar a la base de datos de prueba
+            prueba_db = self.client[DB_NAME_PRUEBA]
+            products_collection = prueba_db[COLLECTION_PRUEBA]
+            
+            # Buscar producto por ID
+            product = products_collection.find_one({"_id": ObjectId(product_id)})
+            
+            if product:
+                # Convertir ObjectId a string
+                product['_id'] = str(product['_id'])
+                return {"success": True, "product": product}
+            else:
+                return {"success": False, "message": "Producto no encontrado"}
+                
+        except Exception as e:
+            return {"success": False, "message": f"Error obteniendo producto: {str(e)}"}
+    
+    def search_prueba_products(self, query):
+        """Buscar productos en la base de datos prueba por nombre o tipo"""
+        try:
+            # Conectar a la base de datos de prueba
+            prueba_db = self.client[DB_NAME_PRUEBA]
+            products_collection = prueba_db[COLLECTION_PRUEBA]
+            
+            # Crear query de búsqueda
+            search_query = {
+                "$or": [
+                    {"product_name": {"$regex": query, "$options": "i"}},
+                    {"product_type": {"$regex": query, "$options": "i"}}
+                ]
+            }
+            
+            # Buscar productos
+            products = list(products_collection.find(search_query))
+            
+            # Convertir ObjectId a string
+            for product in products:
+                if '_id' in product:
+                    product['_id'] = str(product['_id'])
+            
+            return {"success": True, "products": products}
+            
+        except Exception as e:
+            return {"success": False, "message": f"Error buscando productos: {str(e)}"}
+    
+    def get_prueba_products_by_type(self, product_type):
+        """Obtener productos de la base de datos prueba por tipo"""
+        try:
+            # Conectar a la base de datos de prueba
+            prueba_db = self.client[DB_NAME_PRUEBA]
+            products_collection = prueba_db[COLLECTION_PRUEBA]
+            
+            # Buscar por tipo
+            products = list(products_collection.find({"product_type": product_type}))
+            
+            # Convertir ObjectId a string
+            for product in products:
+                if '_id' in product:
+                    product['_id'] = str(product['_id'])
+            
+            return {"success": True, "products": products}
+            
+        except Exception as e:
+            return {"success": False, "message": f"Error obteniendo productos por tipo: {str(e)}"}
