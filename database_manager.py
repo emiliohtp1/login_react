@@ -557,3 +557,81 @@ class DatabaseManager:
                 
         except Exception as e:
             return {"success": False, "message": f"Error: {str(e)}"}
+    
+    def update_product_stock(self, product_id, quantity_to_reduce):
+        """Reducir stock de un producto"""
+        try:
+            from bson import ObjectId
+            
+            # Convertir string ID a ObjectId
+            try:
+                object_id = ObjectId(product_id)
+            except:
+                return {"success": False, "message": "ID de producto inválido"}
+            
+            # Obtener el producto actual
+            product = self.db[COLLECTION_PRODUCTS].find_one({"_id": object_id})
+            if not product:
+                return {"success": False, "message": "Producto no encontrado"}
+            
+            current_stock = product.get("stock", 0)
+            new_stock = current_stock - quantity_to_reduce
+            
+            # Si el stock queda en 0 o menos, eliminar el producto
+            if new_stock <= 0:
+                result = self.db[COLLECTION_PRODUCTS].delete_one({"_id": object_id})
+                if result.deleted_count > 0:
+                    return {
+                        "success": True, 
+                        "message": f"Producto '{product['name']}' eliminado por falta de stock",
+                        "action": "deleted"
+                    }
+                else:
+                    return {"success": False, "message": "Error al eliminar el producto"}
+            else:
+                # Actualizar el stock
+                result = self.db[COLLECTION_PRODUCTS].update_one(
+                    {"_id": object_id},
+                    {"$set": {"stock": new_stock, "updated_at": datetime.now()}}
+                )
+                
+                if result.modified_count > 0:
+                    return {
+                        "success": True, 
+                        "message": f"Stock actualizado: {current_stock} -> {new_stock}",
+                        "action": "updated",
+                        "new_stock": new_stock
+                    }
+                else:
+                    return {"success": False, "message": "Error al actualizar el stock"}
+                    
+        except Exception as e:
+            return {"success": False, "message": f"Error: {str(e)}"}
+    
+    def process_checkout(self, user_id, cart_items):
+        """Procesar checkout: actualizar stock y vaciar carrito"""
+        try:
+            results = []
+            
+            # Actualizar stock de cada producto
+            for item in cart_items:
+                result = self.update_product_stock(item["product_id"], item["quantity"])
+                results.append({
+                    "product_id": item["product_id"],
+                    "product_name": item["product_name"],
+                    "quantity": item["quantity"],
+                    "result": result
+                })
+            
+            # Vaciar el carrito del usuario
+            clear_result = self.clear_cart(user_id)
+            
+            return {
+                "success": True,
+                "message": "Checkout procesado exitosamente",
+                "stock_updates": results,
+                "cart_cleared": clear_result["success"]
+            }
+            
+        except Exception as e:
+            return {"success": False, "message": f"Error: {str(e)}"}

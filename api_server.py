@@ -74,6 +74,10 @@ class CartUpdateRequest(BaseModel):
     size: str
     quantity: int
 
+class CheckoutRequest(BaseModel):
+    user_id: str
+    cart_items: list
+
 class ApiResponse(BaseModel):
     success: bool
     message: str
@@ -338,6 +342,18 @@ async def clear_cart(user_id: str):
         logger.error(f"Error vaciando carrito: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error del servidor: {str(e)}")
 
+@app.post("/api/checkout")
+async def process_checkout(request: CheckoutRequest):
+    """Procesar checkout: actualizar stock y vaciar carrito"""
+    try:
+        logger.info(f"Procesando checkout para usuario {request.user_id}")
+        result = db_manager.process_checkout(request.user_id, request.cart_items)
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error procesando checkout: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error del servidor: {str(e)}")
+
 if __name__ == '__main__':
     import uvicorn
     print("Iniciando API REST con FastAPI...")
@@ -354,6 +370,7 @@ if __name__ == '__main__':
     print("  PUT  /api/cart/update - Actualizar carrito")
     print("  DELETE /api/cart/remove - Eliminar del carrito")
     print("  DELETE /api/cart/clear/{user_id} - Vaciar carrito")
+    print("  POST /api/checkout - Procesar checkout")
     print("\nPresiona Ctrl+C para detener el servidor")
     
     uvicorn.run(app, host="0.0.0.0", port=8000)
