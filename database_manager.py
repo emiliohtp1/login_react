@@ -530,17 +530,25 @@ class DatabaseManager:
             # Si no hay items, eliminar el carrito
             if not cart["items"]:
                 result = self.db[COLLECTION_CART].delete_one({"_id": cart["_id"]})
+                if result.deleted_count > 0:
+                    return {
+                        "success": True, 
+                        "message": "Producto eliminado del carrito",
+                        "cart_cleared": True
+                    }
+                else:
+                    return {"success": False, "message": "Error al eliminar el carrito"}
             else:
                 # Actualizar carrito
                 result = self.db[COLLECTION_CART].update_one(
                     {"_id": cart["_id"]},
                     {"$set": cart}
                 )
-            
-            if result.modified_count > 0 or result.deleted_count > 0:
-                return {"success": True, "message": "Producto eliminado del carrito"}
-            else:
-                return {"success": False, "message": "Error al actualizar el carrito"}
+                
+                if result.modified_count > 0:
+                    return {"success": True, "message": "Producto eliminado del carrito"}
+                else:
+                    return {"success": False, "message": "Error al actualizar el carrito"}
                 
         except Exception as e:
             return {"success": False, "message": f"Error: {str(e)}"}

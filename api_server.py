@@ -295,8 +295,15 @@ async def get_cart(user_id: str):
     try:
         logger.info(f"Obteniendo carrito del usuario {user_id}")
         result = db_manager.get_cart(user_id)
+        
+        # Si el carrito no existe (items vacíos), devolver 404
+        if result["success"] and result["cart"]["total_items"] == 0:
+            raise HTTPException(status_code=404, detail="Carrito no encontrado")
+        
         return result
         
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error obteniendo carrito: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error del servidor: {str(e)}")
