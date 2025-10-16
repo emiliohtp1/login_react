@@ -224,6 +224,33 @@ class DatabaseManager:
         except Exception as e:
             return {"success": False, "message": f"Error: {str(e)}"}
     
+    def update_product(self, product_id, product_data):
+        """Actualizar producto por ID"""
+        try:
+            from bson import ObjectId
+            
+            # Convertir string ID a ObjectId
+            try:
+                object_id = ObjectId(product_id)
+            except:
+                return {"success": False, "message": "ID de producto inválido"}
+            
+            # Agregar fecha de actualización
+            product_data["updated_at"] = datetime.now()
+            
+            result = self.db[COLLECTION_PRODUCTS].update_one(
+                {"_id": object_id},
+                {"$set": product_data}
+            )
+            
+            if result.modified_count > 0:
+                return {"success": True, "message": "Producto actualizado exitosamente"}
+            else:
+                return {"success": False, "message": "Producto no encontrado"}
+                
+        except Exception as e:
+            return {"success": False, "message": f"Error: {str(e)}"}
+    
     def delete_product(self, product_id):
         """Eliminar producto por ID"""
         try:

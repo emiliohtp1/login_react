@@ -228,6 +228,27 @@ async def add_product(request: ProductRequest):
         logger.error(f"Error agregando producto: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error del servidor: {str(e)}")
 
+@app.put("/api/products/{product_id}")
+async def update_product(product_id: str, request: ProductRequest):
+    """Actualizar producto"""
+    try:
+        logger.info(f"Actualizando producto: {product_id}")
+        result = db_manager.update_product(product_id, {
+            "name": request.name,
+            "price": request.price,
+            "description": request.description,
+            "category": request.category,
+            "image": request.image,
+            "size": request.size,
+            "color": request.color,
+            "stock": request.stock
+        })
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error actualizando producto: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error del servidor: {str(e)}")
+
 @app.delete("/api/products/{product_id}")
 async def delete_product(product_id: str):
     """Eliminar producto"""
