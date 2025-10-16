@@ -54,6 +54,16 @@ class PermissionCheckRequest(BaseModel):
     username: str
     required_role: str
 
+class ProductRequest(BaseModel):
+    name: str
+    price: float
+    description: str
+    category: str
+    image: str
+    size: str
+    color: str
+    stock: int = 0
+
 class ApiResponse(BaseModel):
     success: bool
     message: str
@@ -196,6 +206,27 @@ async def get_available_roles():
             {"name": "administrador", "level": 3, "description": "Acceso completo"}
         ]
     }
+
+@app.post("/api/products")
+async def add_product(request: ProductRequest):
+    """Agregar nuevo producto"""
+    try:
+        logger.info(f"Agregando producto: {request.name}")
+        result = db_manager.add_product({
+            "name": request.name,
+            "price": request.price,
+            "description": request.description,
+            "category": request.category,
+            "image": request.image,
+            "size": request.size,
+            "color": request.color,
+            "stock": request.stock
+        })
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error agregando producto: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error del servidor: {str(e)}")
 
 if __name__ == '__main__':
     import uvicorn
