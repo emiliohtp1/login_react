@@ -224,6 +224,27 @@ class DatabaseManager:
         except Exception as e:
             return {"success": False, "message": f"Error: {str(e)}"}
     
+    def delete_product(self, product_id):
+        """Eliminar producto por ID"""
+        try:
+            from bson import ObjectId
+            
+            # Convertir string ID a ObjectId
+            try:
+                object_id = ObjectId(product_id)
+            except:
+                return {"success": False, "message": "ID de producto inválido"}
+            
+            result = self.db[COLLECTION_PRODUCTS].delete_one({"_id": object_id})
+            
+            if result.deleted_count > 0:
+                return {"success": True, "message": "Producto eliminado exitosamente"}
+            else:
+                return {"success": False, "message": "Producto no encontrado"}
+                
+        except Exception as e:
+            return {"success": False, "message": f"Error: {str(e)}"}
+    
     def update_user_role(self, username, new_role):
         """Actualizar el rol de un usuario"""
         try:

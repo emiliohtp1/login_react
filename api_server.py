@@ -228,6 +228,18 @@ async def add_product(request: ProductRequest):
         logger.error(f"Error agregando producto: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error del servidor: {str(e)}")
 
+@app.delete("/api/products/{product_id}")
+async def delete_product(product_id: str):
+    """Eliminar producto"""
+    try:
+        logger.info(f"Eliminando producto: {product_id}")
+        result = db_manager.delete_product(product_id)
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error eliminando producto: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error del servidor: {str(e)}")
+
 if __name__ == '__main__':
     import uvicorn
     print("Iniciando API REST con FastAPI...")
