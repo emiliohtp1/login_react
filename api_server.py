@@ -44,6 +44,15 @@ class LoginRequest(BaseModel):
 class UserRequest(BaseModel):
     username: str
     password: str
+    role: Optional[str] = "usuario"
+
+class RoleUpdateRequest(BaseModel):
+    username: str
+    new_role: str
+
+class PermissionCheckRequest(BaseModel):
+    username: str
+    required_role: str
 
 class ApiResponse(BaseModel):
     success: bool
@@ -138,13 +147,55 @@ async def get_product(product_id: str):
 
 @app.post("/api/users")
 async def add_user(request: UserRequest):
-    """Agregar nuevo usuario"""
+    """Agregar nuevo usuario con rol"""
     try:
-        result = db_manager.add_user(request.username, request.password)
+        result = db_manager.add_user(request.username, request.password, request.role)
         return result
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error del servidor: {str(e)}")
+
+@app.put("/api/users/role")
+async def update_user_role(request: RoleUpdateRequest):
+    """Actualizar rol de usuario"""
+    try:
+        result = db_manager.update_user_role(request.username, request.new_role)
+        return result
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error del servidor: {str(e)}")
+
+@app.get("/api/users/role/{role}")
+async def get_users_by_role(role: str):
+    """Obtener usuarios por rol"""
+    try:
+        result = db_manager.get_users_by_role(role)
+        return result
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error del servidor: {str(e)}")
+
+@app.post("/api/users/permission")
+async def check_permission(request: PermissionCheckRequest):
+    """Verificar permisos de usuario"""
+    try:
+        result = db_manager.check_permission(request.username, request.required_role)
+        return result
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error del servidor: {str(e)}")
+
+@app.get("/api/users/roles")
+async def get_available_roles():
+    """Obtener roles disponibles"""
+    return {
+        "success": True,
+        "roles": [
+            {"name": "usuario", "level": 1, "description": "Usuario básico"},
+            {"name": "editor", "level": 2, "description": "Puede editar contenido"},
+            {"name": "administrador", "level": 3, "description": "Acceso completo"}
+        ]
+    }
 
 if __name__ == '__main__':
     import uvicorn

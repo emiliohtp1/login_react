@@ -32,9 +32,26 @@ def main():
             print("❌ Las contraseñas no coinciden")
             return
         
+        # Solicitar rol
+        print("\n👥 Roles disponibles:")
+        print("1. usuario (básico)")
+        print("2. editor (puede editar contenido)")
+        print("3. administrador (acceso completo)")
+        
+        role_choice = input("🎭 Selecciona el rol (1-3) [1]: ").strip()
+        
+        role_map = {
+            "1": "usuario",
+            "2": "editor", 
+            "3": "administrador"
+        }
+        
+        role = role_map.get(role_choice, "usuario")
+        print(f"🎭 Rol seleccionado: {role}")
+        
         # Agregar usuario
         print("\n⏳ Agregando usuario...")
-        result = db_manager.add_user(username, password)
+        result = db_manager.add_user(username, password, role)
         
         if result["success"]:
             print(f"✅ {result['message']}")

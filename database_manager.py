@@ -25,18 +25,24 @@ class DatabaseManager:
             self.client.close()
             print("Desconectado de MongoDB")
     
-    def add_user(self, username, password):
-        """Agregar un nuevo usuario"""
+    def add_user(self, username, password, role="usuario"):
+        """Agregar un nuevo usuario con rol"""
         try:
             # Verificar si el usuario ya existe
             existing_user = self.db[COLLECTION_USERS].find_one({"username": username})
             if existing_user:
                 return {"success": False, "message": "El usuario ya existe"}
             
+            # Validar rol
+            valid_roles = ["usuario", "editor", "administrador"]
+            if role not in valid_roles:
+                return {"success": False, "message": f"Rol inválido. Roles válidos: {', '.join(valid_roles)}"}
+            
             # Crear nuevo usuario
             user_data = {
                 "username": username,
                 "password": password,
+                "role": role,
                 "created_at": datetime.now(),
                 "is_active": True
             }
@@ -70,6 +76,7 @@ class DatabaseManager:
                     "user": {
                         "id": str(user["_id"]),
                         "username": user["username"],
+                        "role": user.get("role", "usuario"),
                         "created_at": user["created_at"]
                     }
                 }
@@ -214,5 +221,82 @@ class DatabaseManager:
             
             return {"success": True, "message": "Datos de muestra creados exitosamente"}
             
+        except Exception as e:
+            return {"success": False, "message": f"Error: {str(e)}"}
+    
+    def update_user_role(self, username, new_role):
+        """Actualizar el rol de un usuario"""
+        try:
+            valid_roles = ["usuario", "editor", "administrador"]
+            if new_role not in valid_roles:
+                return {"success": False, "message": f"Rol inválido. Roles válidos: {', '.join(valid_roles)}"}
+            
+            result = self.db[COLLECTION_USERS].update_one(
+                {"username": username},
+                {"$set": {"role": new_role, "updated_at": datetime.now()}}
+            )
+            
+            if result.modified_count > 0:
+                return {"success": True, "message": f"Rol de '{username}' actualizado a '{new_role}'"}
+            else:
+                return {"success": False, "message": "Usuario no encontrado"}
+                
+        except Exception as e:
+            return {"success": False, "message": f"Error: {str(e)}"}
+    
+    def get_users_by_role(self, role):
+        """Obtener usuarios por rol"""
+        try:
+            valid_roles = ["usuario", "editor", "administrador"]
+            if role not in valid_roles:
+                return {"success": False, "message": f"Rol inválido. Roles válidos: {', '.join(valid_roles)}"}
+            
+            users = list(self.db[COLLECTION_USERS].find(
+                {"role": role, "is_active": True},
+                {"password": 0}  # Excluir contraseñas
+            ))
+            
+            user_list = []
+            for user in users:
+                user_list.append({
+                    "id": str(user["_id"]),
+                    "username": user["username"],
+                    "role": user.get("role", "usuario"),
+                    "created_at": user["created_at"]
+                })
+            
+            return {"success": True, "users": user_list}
+            
+        except Exception as e:
+            return {"success": False, "message": f"Error: {str(e)}"}
+    
+    def check_permission(self, username, required_role):
+        """Verificar si un usuario tiene el rol necesario"""
+        try:
+            user = self.db[COLLECTION_USERS].find_one(
+                {"username": username, "is_active": True},
+                {"role": 1}
+            )
+            
+            if not user:
+                return {"success": False, "message": "Usuario no encontrado"}
+            
+            user_role = user.get("role", "usuario")
+            
+            # Definir jerarquía de roles
+            role_hierarchy = {
+                "usuario": 1,
+                "editor": 2,
+                "administrador": 3
+            }
+            
+            user_level = role_hierarchy.get(user_role, 1)
+            required_level = role_hierarchy.get(required_role, 1)
+            
+            if user_level >= required_level:
+                return {"success": True, "message": "Permiso concedido"}
+            else:
+                return {"success": False, "message": f"Permiso denegado. Se requiere rol '{required_role}' o superior"}
+                
         except Exception as e:
             return {"success": False, "message": f"Error: {str(e)}"}
