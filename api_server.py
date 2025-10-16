@@ -64,6 +64,16 @@ class ProductRequest(BaseModel):
     color: str
     stock: int = 0
 
+class CartItemRequest(BaseModel):
+    product_id: str
+    size: str = "M"
+    quantity: int = 1
+
+class CartUpdateRequest(BaseModel):
+    product_id: str
+    size: str
+    quantity: int
+
 class ApiResponse(BaseModel):
     success: bool
     message: str
@@ -261,6 +271,73 @@ async def delete_product(product_id: str):
         logger.error(f"Error eliminando producto: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error del servidor: {str(e)}")
 
+# ==================== ENDPOINTS DEL CARRITO ====================
+
+@app.post("/api/cart/add")
+async def add_to_cart(request: CartItemRequest, user_id: str):
+    """Agregar producto al carrito del usuario"""
+    try:
+        logger.info(f"Agregando producto {request.product_id} al carrito del usuario {user_id}")
+        result = db_manager.add_to_cart(user_id, request.product_id, request.size, request.quantity)
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error agregando al carrito: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error del servidor: {str(e)}")
+
+@app.get("/api/cart/{user_id}")
+async def get_cart(user_id: str):
+    """Obtener carrito del usuario"""
+    try:
+        logger.info(f"Obteniendo carrito del usuario {user_id}")
+        result = db_manager.get_cart(user_id)
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error obteniendo carrito: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error del servidor: {str(e)}")
+
+@app.put("/api/cart/update")
+async def update_cart_item(request: CartUpdateRequest, user_id: str):
+    """Actualizar cantidad de un item en el carrito"""
+    try:
+        logger.info(f"Actualizando item {request.product_id} en carrito del usuario {user_id}")
+        result = db_manager.update_cart_item_quantity(
+            user_id, 
+            request.product_id, 
+            request.size, 
+            request.quantity
+        )
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error actualizando carrito: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error del servidor: {str(e)}")
+
+@app.delete("/api/cart/remove")
+async def remove_from_cart(request: CartItemRequest, user_id: str):
+    """Eliminar producto del carrito"""
+    try:
+        logger.info(f"Eliminando producto {request.product_id} del carrito del usuario {user_id}")
+        result = db_manager.remove_from_cart(user_id, request.product_id, request.size)
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error eliminando del carrito: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error del servidor: {str(e)}")
+
+@app.delete("/api/cart/clear/{user_id}")
+async def clear_cart(user_id: str):
+    """Vaciar carrito del usuario"""
+    try:
+        logger.info(f"Vaciando carrito del usuario {user_id}")
+        result = db_manager.clear_cart(user_id)
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error vaciando carrito: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error del servidor: {str(e)}")
+
 if __name__ == '__main__':
     import uvicorn
     print("Iniciando API REST con FastAPI...")
@@ -272,6 +349,11 @@ if __name__ == '__main__':
     print("  GET  /api/products/{id} - Obtener producto específico")
     print("  POST /api/users - Agregar usuario")
     print("  GET  /api/health - Verificar estado")
+    print("  POST /api/cart/add - Agregar al carrito")
+    print("  GET  /api/cart/{user_id} - Obtener carrito")
+    print("  PUT  /api/cart/update - Actualizar carrito")
+    print("  DELETE /api/cart/remove - Eliminar del carrito")
+    print("  DELETE /api/cart/clear/{user_id} - Vaciar carrito")
     print("\nPresiona Ctrl+C para detener el servidor")
     
     uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -1,5 +1,5 @@
 from pymongo import MongoClient
-from config import MONGODB_URI, DB_NAME, COLLECTION_USERS, COLLECTION_PRODUCTS
+from config import MONGODB_URI, DB_NAME, COLLECTION_USERS, COLLECTION_PRODUCTS, COLLECTION_CART
 import json
 from datetime import datetime
 
@@ -345,6 +345,215 @@ class DatabaseManager:
                 return {"success": True, "message": "Permiso concedido"}
             else:
                 return {"success": False, "message": f"Permiso denegado. Se requiere rol '{required_role}' o superior"}
+                
+        except Exception as e:
+            return {"success": False, "message": f"Error: {str(e)}"}
+    
+    # ==================== MÉTODOS DEL CARRITO ====================
+    
+    def add_to_cart(self, user_id, product_id, size="M", quantity=1):
+        """Agregar producto al carrito del usuario"""
+        try:
+            from bson import ObjectId
+            
+            # Obtener información del producto
+            product = self.db[COLLECTION_PRODUCTS].find_one({"_id": ObjectId(product_id)})
+            if not product:
+                return {"success": False, "message": "Producto no encontrado"}
+            
+            # Buscar carrito existente del usuario
+            cart = self.db[COLLECTION_CART].find_one({"user_id": user_id})
+            
+            # Crear item del carrito
+            cart_item = {
+                "product_id": product_id,
+                "product_name": product["name"],
+                "product_price": product["price"],
+                "product_image": product["image"],
+                "size": size,
+                "quantity": quantity,
+                "added_at": datetime.now()
+            }
+            
+            if cart:
+                # Verificar si el producto ya existe en el carrito con la misma talla
+                existing_item = None
+                for item in cart["items"]:
+                    if item["product_id"] == product_id and item["size"] == size:
+                        existing_item = item
+                        break
+                
+                if existing_item:
+                    # Actualizar cantidad del item existente
+                    existing_item["quantity"] += quantity
+                else:
+                    # Agregar nuevo item
+                    cart["items"].append(cart_item)
+                
+                # Recalcular totales
+                cart["total_items"] = sum(item["quantity"] for item in cart["items"])
+                cart["total_price"] = sum(item["product_price"] * item["quantity"] for item in cart["items"])
+                cart["updated_at"] = datetime.now()
+                
+                # Actualizar en la base de datos
+                result = self.db[COLLECTION_CART].update_one(
+                    {"_id": cart["_id"]},
+                    {"$set": cart}
+                )
+                
+                if result.modified_count > 0:
+                    return {"success": True, "message": "Producto agregado al carrito"}
+                else:
+                    return {"success": False, "message": "Error al actualizar el carrito"}
+            else:
+                # Crear nuevo carrito
+                new_cart = {
+                    "user_id": user_id,
+                    "items": [cart_item],
+                    "total_items": quantity,
+                    "total_price": product["price"] * quantity,
+                    "created_at": datetime.now(),
+                    "updated_at": datetime.now()
+                }
+                
+                result = self.db[COLLECTION_CART].insert_one(new_cart)
+                
+                if result.inserted_id:
+                    return {"success": True, "message": "Producto agregado al carrito"}
+                else:
+                    return {"success": False, "message": "Error al crear el carrito"}
+                    
+        except Exception as e:
+            return {"success": False, "message": f"Error: {str(e)}"}
+    
+    def get_cart(self, user_id):
+        """Obtener carrito del usuario"""
+        try:
+            cart = self.db[COLLECTION_CART].find_one({"user_id": user_id})
+            
+            if cart:
+                return {
+                    "success": True,
+                    "cart": {
+                        "id": str(cart["_id"]),
+                        "user_id": cart["user_id"],
+                        "items": cart["items"],
+                        "total_items": cart["total_items"],
+                        "total_price": cart["total_price"],
+                        "created_at": cart["created_at"],
+                        "updated_at": cart["updated_at"]
+                    }
+                }
+            else:
+                return {
+                    "success": True,
+                    "cart": {
+                        "id": None,
+                        "user_id": user_id,
+                        "items": [],
+                        "total_items": 0,
+                        "total_price": 0,
+                        "created_at": None,
+                        "updated_at": None
+                    }
+                }
+                
+        except Exception as e:
+            return {"success": False, "message": f"Error: {str(e)}"}
+    
+    def update_cart_item_quantity(self, user_id, product_id, size, new_quantity):
+        """Actualizar cantidad de un item en el carrito"""
+        try:
+            from bson import ObjectId
+            
+            cart = self.db[COLLECTION_CART].find_one({"user_id": user_id})
+            if not cart:
+                return {"success": False, "message": "Carrito no encontrado"}
+            
+            # Buscar y actualizar el item
+            item_found = False
+            for item in cart["items"]:
+                if item["product_id"] == product_id and item["size"] == size:
+                    if new_quantity <= 0:
+                        # Eliminar item si cantidad es 0 o menor
+                        cart["items"].remove(item)
+                    else:
+                        item["quantity"] = new_quantity
+                    item_found = True
+                    break
+            
+            if not item_found:
+                return {"success": False, "message": "Item no encontrado en el carrito"}
+            
+            # Recalcular totales
+            cart["total_items"] = sum(item["quantity"] for item in cart["items"])
+            cart["total_price"] = sum(item["product_price"] * item["quantity"] for item in cart["items"])
+            cart["updated_at"] = datetime.now()
+            
+            # Actualizar en la base de datos
+            result = self.db[COLLECTION_CART].update_one(
+                {"_id": cart["_id"]},
+                {"$set": cart}
+            )
+            
+            if result.modified_count > 0:
+                return {"success": True, "message": "Cantidad actualizada"}
+            else:
+                return {"success": False, "message": "Error al actualizar el carrito"}
+                
+        except Exception as e:
+            return {"success": False, "message": f"Error: {str(e)}"}
+    
+    def remove_from_cart(self, user_id, product_id, size):
+        """Eliminar producto del carrito"""
+        try:
+            cart = self.db[COLLECTION_CART].find_one({"user_id": user_id})
+            if not cart:
+                return {"success": False, "message": "Carrito no encontrado"}
+            
+            # Buscar y eliminar el item
+            item_found = False
+            for item in cart["items"]:
+                if item["product_id"] == product_id and item["size"] == size:
+                    cart["items"].remove(item)
+                    item_found = True
+                    break
+            
+            if not item_found:
+                return {"success": False, "message": "Item no encontrado en el carrito"}
+            
+            # Recalcular totales
+            cart["total_items"] = sum(item["quantity"] for item in cart["items"])
+            cart["total_price"] = sum(item["product_price"] * item["quantity"] for item in cart["items"])
+            cart["updated_at"] = datetime.now()
+            
+            # Si no hay items, eliminar el carrito
+            if not cart["items"]:
+                result = self.db[COLLECTION_CART].delete_one({"_id": cart["_id"]})
+            else:
+                # Actualizar carrito
+                result = self.db[COLLECTION_CART].update_one(
+                    {"_id": cart["_id"]},
+                    {"$set": cart}
+                )
+            
+            if result.modified_count > 0 or result.deleted_count > 0:
+                return {"success": True, "message": "Producto eliminado del carrito"}
+            else:
+                return {"success": False, "message": "Error al actualizar el carrito"}
+                
+        except Exception as e:
+            return {"success": False, "message": f"Error: {str(e)}"}
+    
+    def clear_cart(self, user_id):
+        """Vaciar carrito del usuario"""
+        try:
+            result = self.db[COLLECTION_CART].delete_one({"user_id": user_id})
+            
+            if result.deleted_count > 0:
+                return {"success": True, "message": "Carrito vaciado"}
+            else:
+                return {"success": False, "message": "Carrito no encontrado"}
                 
         except Exception as e:
             return {"success": False, "message": f"Error: {str(e)}"}
